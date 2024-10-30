@@ -1,0 +1,75 @@
+---
+title: "Fred"
+author: "Mathew Attipetty"
+date: "2024-10-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(quantmod)
+```
+
+
+```{r}
+# Load data from FRED using quantmod
+getSymbols("GDP", src = "FRED")  # Nominal GDP (quarterly)
+getSymbols("DGS5", src = "FRED") # 5-Year Treasury Yield (daily)
+
+# Remove missing values from the datasets early to improve alignment
+GDP <- na.omit(GDP)
+DGS5 <- na.omit(DGS5)
+
+# Convert GDP data to quarterly frequency
+gdp_quarterly <- to.quarterly(GDP, indexAt = "lastof", OHLC = FALSE)$GDP
+
+# Convert daily Treasury Yield to quarterly data (use Close price)
+treasury_yield_quarterly <- to.quarterly(DGS5, indexAt = "lastof", OHLC = FALSE)$DGS5
+
+# Calculate percentage change in GDP (annualized)
+gdp_growth <- (gdp_quarterly / lag.xts(gdp_quarterly, k = 4) - 1) * 100
+
+# Convert GDP growth and treasury yield to data frames
+gdp_growth_df <- data.frame(
+  Date = index(gdp_growth),
+  Nominal_GDP_Growth = as.numeric(gdp_growth)
+)
+
+treasury_yield_df <- data.frame(
+  Date = index(treasury_yield_quarterly),
+  Treasury_Yield = as.numeric(treasury_yield_quarterly)
+)
+
+```
+```{r}
+# Plotting GDP Growth and Treasury Yield
+ggplot() +
+  geom_line(data = gdp_growth_df, aes(x = Date, y = Nominal_GDP_Growth, color = "Nominal GDP Growth"), linewidth = 1) +
+  geom_line(data = treasury_yield_df, aes(x = Date, y = Treasury_Yield, color = "5-Year Treasury Yield"), linewidth = 1) +
+  labs(title = "GDP Growth and Treasury Yield",
+       y = "Percent per Annum",
+       x = "Year",
+       color = "Legend") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+```
+
+```{r}
+# Filter data for the period from 2010 to now
+gdp_growth_recent <- gdp_growth_df %>% filter(Date >= as.Date("2010-01-01"))
+treasury_yield_recent <- treasury_yield_df %>% filter(Date >= as.Date("2010-01-01"))
+
+# Plotting GDP Growth and Treasury Yield (2010 to now)
+ggplot() +
+  geom_line(data = gdp_growth_recent, aes(x = Date, y = Nominal_GDP_Growth, color = "Nominal GDP Growth"), linewidth = 1) +
+  geom_line(data = treasury_yield_recent, aes(x = Date, y = Treasury_Yield, color = "5-Year Treasury Yield"), linewidth = 1) +
+  labs(title = "GDP Growth and Treasury Yield (2010 to Present)",
+       y = "Percent per Annum",
+       x = "Year",
+       color = "Legend") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
